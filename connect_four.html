@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Connect Four</title>
+<style>
+:root{
+  --text:#eef4fb;--muted:#8fa2ba;--red:#ff4d57;--yellow:#ffd84a;
+  --blue:#1670d2;--stroke:#243650;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%;margin:0}
+body{
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  color:var(--text);
+  background:
+    radial-gradient(circle at 15% 0%,rgba(255,77,87,.10),transparent 26%),
+    radial-gradient(circle at 84% 0%,rgba(255,216,74,.09),transparent 26%),
+    linear-gradient(180deg,#0b1420,#08111d 66%,#060b12);
+}
+button{font:inherit}
+.app{
+  width:min(1160px,100%);min-height:100vh;margin:auto;padding:22px;
+  display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:22px;align-items:center;
+}
+.gamePanel,.side{
+  border:1px solid var(--stroke);border-radius:24px;
+  background:linear-gradient(180deg,rgba(255,255,255,.04),rgba(255,255,255,.018));
+  box-shadow:0 28px 90px rgba(0,0,0,.35);
+}
+.gamePanel{padding:24px;min-width:0}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+.titleWrap h1{font-size:29px;margin:0;letter-spacing:.04em}
+.titleWrap p{margin:6px 0 0;color:var(--muted);font-size:13px}
+.turn{
+  display:flex;align-items:center;gap:9px;padding:10px 13px;border-radius:999px;
+  background:#0b1421;border:1px solid #263a54;color:#d9e5f2;font-size:13px;font-weight:800
+}
+.turnDisc{width:18px;height:18px;border-radius:50%;box-shadow:inset -3px -4px 5px rgba(0,0,0,.22),inset 2px 2px 3px rgba(255,255,255,.3),0 0 12px rgba(255,255,255,.1)}
+.boardWrap{position:relative;width:min(760px,100%);margin:0 auto;padding-top:66px}
+.previewRow{position:absolute;left:0;right:0;top:0;height:62px;display:grid;grid-template-columns:repeat(7,1fr);pointer-events:none}
+.previewSlot{position:relative}
+.previewDisc{
+  position:absolute;left:50%;top:5px;transform:translateX(-50%) scale(.84);
+  width:min(70%,72px);aspect-ratio:1;border-radius:50%;opacity:0;
+  transition:.12s opacity,.12s transform;
+  box-shadow:inset -7px -9px 12px rgba(0,0,0,.22),inset 5px 5px 8px rgba(255,255,255,.3),0 12px 24px rgba(0,0,0,.25)
+}
+.previewDisc.show{opacity:.92;transform:translateX(-50%) scale(1)}
+.board{
+  position:relative;display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:repeat(6,1fr);
+  gap:10px;padding:18px;aspect-ratio:7/6;border-radius:24px;
+  background:linear-gradient(145deg,#2184eb,#0c59b8 60%,#084a9a);
+  border:1px solid #4ba0ef;
+  box-shadow:inset 0 5px 8px rgba(255,255,255,.20),inset 0 -16px 22px rgba(0,0,0,.23),0 24px 42px rgba(0,0,0,.35);
+  overflow:hidden;
+}
+.board::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:24px;background:linear-gradient(120deg,rgba(255,255,255,.13),transparent 26%,transparent 72%,rgba(0,0,0,.10))}
+.cell{
+  position:relative;border-radius:50%;cursor:pointer;
+  background:radial-gradient(circle at 50% 44%,#07101a 0 58%,#123258 62%,#0a2747 72%,#0a1c31 100%);
+  box-shadow:inset 0 10px 15px rgba(0,0,0,.62),0 2px 1px rgba(255,255,255,.14);
+}
+.cell::before{content:"";position:absolute;inset:9%;border-radius:50%;border:1px solid rgba(255,255,255,.05);pointer-events:none}
+.disc{
+  position:absolute;inset:8%;border-radius:50%;
+  box-shadow:inset -9px -11px 14px rgba(0,0,0,.22),inset 6px 6px 10px rgba(255,255,255,.30),0 7px 10px rgba(0,0,0,.36)
+}
+.red{background:radial-gradient(circle at 35% 30%,#ff9298 0 8%,#ff5963 24%,#e52d38 67%,#ad1822 100%)}
+.yellow{background:radial-gradient(circle at 35% 30%,#fff7a0 0 8%,#ffe061 25%,#f4bf20 68%,#c58d05 100%)}
+.disc.win{animation:pulse 1s ease-in-out infinite;outline:4px solid rgba(255,255,255,.68);outline-offset:2px}
+@keyframes pulse{50%{filter:brightness(1.32);transform:scale(1.07)}}
+.columnHit{display:none}
+.side{padding:20px;display:flex;flex-direction:column;gap:18px}
+.score{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.scoreCard{border:1px solid #25384f;background:#0a1421;border-radius:16px;padding:14px}
+.scoreCard .name{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:#a5b6c8}
+.scoreCard strong{display:block;font-size:34px;line-height:1;margin-top:7px}
+.redTxt{color:var(--red)}.yellowTxt{color:var(--yellow)}
+.status{padding:14px;border-radius:14px;border:1px solid #263b53;background:#0a1420;font-size:14px;line-height:1.45;color:#d7e2ee}
+.section h2{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#7e94ad}
+.modeBtns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{
+  cursor:pointer;border:1px solid #2b4059;background:#111d2c;color:#eaf2fa;padding:10px 11px;border-radius:12px;
+  font-size:13px;font-weight:800;transition:.16s transform,.16s background,.16s border-color
+}
+.btn:hover{transform:translateY(-1px);background:#17263a;border-color:#3b5878}
+.btn.active{background:#173653;border-color:#3b7eb5}.btn.primary{width:100%;background:linear-gradient(135deg,#205f9f,#0c427d);border-color:#3d7fbd}
+.help{font-size:13px;line-height:1.55;color:#94a8bc}.help b{color:#dce7f2}
+.keyboard{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+.key{
+  min-width:29px;height:28px;padding:0 8px;display:inline-grid;place-items:center;border-radius:7px;
+  background:linear-gradient(#192538,#0d1623);border:1px solid #2d435d;box-shadow:inset 0 -2px 0 rgba(0,0,0,.35);
+  font-size:12px;font-weight:800
+}
+.confetti{position:fixed;pointer-events:none;width:8px;height:14px;border-radius:2px;z-index:30;animation:confetti 1.4s ease-out forwards}
+@keyframes confetti{to{transform:translate(var(--dx),var(--dy)) rotate(var(--rot));opacity:0}}
+.small{font-size:11px;color:#657d96;text-align:center}
+@media(max-width:900px){
+  .app{grid-template-columns:1fr;padding:10px}.gamePanel,.side{border-radius:18px}.gamePanel{padding:14px}
+  .board{gap:7px;padding:12px;border-radius:18px}.boardWrap{padding-top:54px}.previewRow{height:50px}.columnHit{top:54px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <main class="gamePanel">
+    <div class="topbar">
+      <div class="titleWrap"><h1>CONNECT FOUR</h1><p>Drop four in a row — horizontal, vertical, or diagonal.</p></div>
+      <div class="turn"><span id="turnDisc" class="turnDisc red"></span><span id="turnText">Red's turn</span></div>
+    </div>
+    <div class="boardWrap">
+      <div class="previewRow" id="previewRow"></div>
+      <div class="board" id="board"></div>
+      <div class="columnHit" id="columnHit"></div>
+    </div>
+  </main>
+
+  <aside class="side">
+    <div class="score">
+      <div class="scoreCard"><div class="name">Red</div><strong id="redScore" class="redTxt">0</strong></div>
+      <div class="scoreCard"><div class="name">Yellow</div><strong id="yellowScore" class="yellowTxt">0</strong></div>
+    </div>
+
+    <div id="status" class="status">Red goes first. Choose a column and drop a disc.</div>
+
+    <div class="section">
+      <h2>Mode</h2>
+      <div class="modeBtns">
+        <button id="localBtn" class="btn active">2 Players</button>
+        <button id="aiBtn" class="btn">Vs Computer</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Controls</h2>
+      <div class="help">
+        Click a column, or use the keyboard. The preview disc shows where your next move will fall.
+        <div class="keyboard"><span class="key">←</span><span class="key">↓</span><span class="key">→</span><span style="align-self:center;color:#7188a2;font-size:11px">move · drop · move</span></div>
+        <div class="keyboard"><span class="key">A</span><span class="key">D</span><span class="key">S</span><span style="align-self:center;color:#7188a2;font-size:11px">move · move · drop</span></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Quick strategy</h2>
+      <div class="help"><b>Center columns</b> create more possible lines. Watch for moves that create two threats at once. In computer mode, Yellow plays automatically.</div>
+    </div>
+
+    <button id="newRoundBtn" class="btn primary">New Round</button>
+    <button id="resetScoreBtn" class="btn">Reset Score</button>
+    <div class="small">Starting player alternates after completed rounds.</div>
+  </aside>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const ROWS=6,COLS=7,EMPTY=0,RED=1,YELLOW=2;
+  const boardEl=document.getElementById("board"), hitEl=document.getElementById("columnHit"), previewEl=document.getElementById("previewRow");
+  const turnDisc=document.getElementById("turnDisc"), turnText=document.getElementById("turnText"), statusEl=document.getElementById("status");
+  const redScoreEl=document.getElementById("redScore"), yellowScoreEl=document.getElementById("yellowScore");
+  const localBtn=document.getElementById("localBtn"), aiBtn=document.getElementById("aiBtn");
+  const newRoundBtn=document.getElementById("newRoundBtn"), resetScoreBtn=document.getElementById("resetScoreBtn");
+
+  let board, current=RED, locked=false, gameOver=false, selectedCol=3, mode="local";
+  let score={1:0,2:0}, startingPlayer=RED, moveCount=0;
+
+  function freshBoard(){return Array.from({length:ROWS},()=>Array(COLS).fill(EMPTY));}
+  function other(p){return p===RED?YELLOW:RED;}
+  function pieceClass(p){return p===RED?"red":"yellow";}
+  function pieceName(p){return p===RED?"Red":"Yellow";}
+
+  function initUI(){
+    boardEl.innerHTML="";hitEl.innerHTML="";previewEl.innerHTML="";
+    for(let c=0;c<COLS;c++){
+      const ps=document.createElement("div");ps.className="previewSlot";ps.innerHTML='<div class="previewDisc"></div>';previewEl.appendChild(ps);
+    }
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      const cell=document.createElement("div");cell.className="cell";cell.dataset.r=r;cell.dataset.c=c;boardEl.appendChild(cell);
+    }
+
+    // Directly use the actual board cells for mouse/touch targeting.
+    // This is much more reliable than a transparent overlay.
+    boardEl.addEventListener("pointermove",e=>{
+      const cell=e.target.closest(".cell");
+      if(!cell)return;
+      selectedCol=Number(cell.dataset.c);
+      renderPreview();
+    });
+    boardEl.addEventListener("click",e=>{
+      const cell=e.target.closest(".cell");
+      if(!cell)return;
+      selectedCol=Number(cell.dataset.c);
+      renderPreview();
+      tryMove(selectedCol);
+    });
+  }
+
+  function renderBoard(drop=null,winning=[]){
+    const winSet=new Set(winning.map(([r,c])=>`${r},${c}`));
+    for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+      const cell=boardEl.children[r*COLS+c];cell.innerHTML="";
+      const p=board[r][c];
+      if(p){
+        const d=document.createElement("div");d.className=`disc ${pieceClass(p)}`;
+        if(winSet.has(`${r},${c}`))d.classList.add("win");
+        cell.appendChild(d);
+      }
+    }
+    renderPreview();updateTurnUI();
+  }
+
+  async function animateDrop(r,c){
+    const cell=boardEl.children[r*COLS+c];
+    const disc=cell?.querySelector(".disc");
+    if(!disc)return;
+
+    // Measure the real responsive board so the disc always falls from just above it,
+    // regardless of screen size or which row it lands in.
+    const boardRect=boardEl.getBoundingClientRect();
+    const discRect=disc.getBoundingClientRect();
+    const targetTop=discRect.top;
+    const startTop=boardRect.top-discRect.height-16;
+    const distance=Math.max(70,targetTop-startTop);
+    const duration=Math.min(760,520+distance*.19);
+
+    const bounce1=Math.min(28,discRect.height*.31);
+    const bounce2=bounce1*.48;
+    const bounce3=bounce1*.23;
+    const bounce4=bounce1*.10;
+
+    const animation=disc.animate([
+      {transform:`translateY(${-distance}px)`, offset:0, easing:"cubic-bezier(.18,.52,.32,.98)"},
+      {transform:"translateY(0px)", offset:.61, easing:"cubic-bezier(.12,.78,.22,1)"},
+      {transform:`translateY(${-bounce1}px)`, offset:.705, easing:"cubic-bezier(.20,.58,.34,1)"},
+      {transform:"translateY(0px)", offset:.775, easing:"cubic-bezier(.20,.72,.28,1)"},
+      {transform:`translateY(${-bounce2}px)`, offset:.825, easing:"ease-out"},
+      {transform:"translateY(0px)", offset:.865, easing:"ease-in"},
+      {transform:`translateY(${-bounce3}px)`, offset:.900, easing:"ease-out"},
+      {transform:"translateY(0px)", offset:.928, easing:"ease-in"},
+      {transform:`translateY(${-bounce4}px)`, offset:.952, easing:"ease-out"},
+      {transform:"translateY(0px)", offset:1}
+    ],{
+      duration,
+      fill:"none",
+      easing:"linear"
+    });
+
+    try{ await animation.finished; }catch(_){}
+  }
+
+  function renderPreview(){
+    [...previewEl.children].forEach((slot,c)=>{
+      const d=slot.firstElementChild;d.className="previewDisc";
+      if(c===selectedCol&&!gameOver&&!locked&&legalRow(c)!==-1)d.classList.add(pieceClass(current),"show");
+    });
+  }
+
+  function updateTurnUI(){
+    turnDisc.className=`turnDisc ${pieceClass(current)}`;
+    turnText.textContent=gameOver?"Round complete":`${pieceName(current)}'s turn`;
+  }
+
+  function legalRow(c,b=board){for(let r=ROWS-1;r>=0;r--)if(b[r][c]===EMPTY)return r;return -1;}
+
+  function winningLine(b,p){
+    const dirs=[[0,1],[1,0],[1,1],[1,-1]];
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+      if(b[r][c]!==p)continue;
+      for(const [dr,dc] of dirs){
+        const line=[];
+        for(let k=0;k<4;k++){
+          const rr=r+dr*k,cc=c+dc*k;
+          if(rr<0||rr>=ROWS||cc<0||cc>=COLS||b[rr][cc]!==p)break;
+          line.push([rr,cc]);
+        }
+        if(line.length===4)return line;
+      }
+    }
+    return null;
+  }
+
+  function isFull(b=board){return b[0].every(x=>x!==EMPTY);}
+  function delay(ms){return new Promise(r=>setTimeout(r,ms));}
+
+  function confetti(p){
+    const colors=p===RED?["#ff4d57","#ff9095","#fff"]:["#ffd84a","#fff49a","#fff"];
+    for(let i=0;i<70;i++){
+      const e=document.createElement("div");e.className="confetti";
+      e.style.left=(50+(Math.random()-.5)*22)+"vw";e.style.top=(36+(Math.random()-.5)*10)+"vh";e.style.background=colors[i%colors.length];
+      e.style.setProperty("--dx",`${(Math.random()-.5)*620}px`);
+      e.style.setProperty("--dy",`${150+Math.random()*430}px`);
+      e.style.setProperty("--rot",`${(Math.random()-.5)*900}deg`);
+      document.body.appendChild(e);setTimeout(()=>e.remove(),1500);
+    }
+  }
+
+  async function tryMove(c){
+    if(locked||gameOver)return;
+    if(mode==="ai"&&current===YELLOW)return;
+    await place(c);
+  }
+
+  async function place(c){
+    const r=legalRow(c);if(r<0)return false;
+    locked=true;board[r][c]=current;moveCount++;renderBoard();await animateDrop(r,c);
+
+    const win=winningLine(board,current);
+    if(win){
+      gameOver=true;score[current]++;updateScore();renderBoard(null,win);
+      statusEl.innerHTML=`<span class="${current===RED?"redTxt":"yellowTxt"}"><b>${pieceName(current)}</b></span> connects four and wins the round.`;
+      confetti(current);locked=false;return true;
+    }
+    if(isFull()){
+      gameOver=true;statusEl.textContent="Board full — this round is a draw.";renderBoard();locked=false;return true;
+    }
+
+    current=other(current);renderBoard();
+    statusEl.textContent=mode==="ai"&&current===YELLOW?"Computer is thinking…":`${pieceName(current)} to move.`;
+    locked=false;
+
+    if(mode==="ai"&&current===YELLOW&&!gameOver){
+      locked=true;renderPreview();await delay(260);
+      const col=chooseAIMove(board);
+      locked=false;await place(col);
+    }
+    return true;
+  }
+
+  function cloneBoard(b){return b.map(row=>row.slice());}
+  function legalMoves(b){const a=[];for(let c=0;c<COLS;c++)if(b[0][c]===EMPTY)a.push(c);return a;}
+  function makeMove(b,c,p){const r=legalRow(c,b);if(r<0)return null;const n=cloneBoard(b);n[r][c]=p;return n;}
+
+  function evaluateWindow(arr,p){
+    const opp=other(p),pc=arr.filter(x=>x===p).length,oc=arr.filter(x=>x===opp).length,ec=4-pc-oc;
+    let s=0;
+    if(pc===4)s+=100000;else if(pc===3&&ec===1)s+=95;else if(pc===2&&ec===2)s+=12;
+    if(oc===3&&ec===1)s-=125;else if(oc===2&&ec===2)s-=9;
+    return s;
+  }
+
+  function heuristic(b,p){
+    let s=0;
+    for(let r=0;r<ROWS;r++){if(b[r][3]===p)s+=9;else if(b[r][3]===other(p))s-=9;}
+    const windows=[];
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS-3;c++)windows.push([b[r][c],b[r][c+1],b[r][c+2],b[r][c+3]]);
+    for(let c=0;c<COLS;c++)for(let r=0;r<ROWS-3;r++)windows.push([b[r][c],b[r+1][c],b[r+2][c],b[r+3][c]]);
+    for(let r=0;r<ROWS-3;r++)for(let c=0;c<COLS-3;c++)windows.push([b[r][c],b[r+1][c+1],b[r+2][c+2],b[r+3][c+3]]);
+    for(let r=0;r<ROWS-3;r++)for(let c=3;c<COLS;c++)windows.push([b[r][c],b[r+1][c-1],b[r+2][c-2],b[r+3][c-3]]);
+    for(const w of windows)s+=evaluateWindow(w,p);
+    return s;
+  }
+
+  function minimax(b,depth,alpha,beta,maximizing){
+    const aiWin=winningLine(b,YELLOW),humanWin=winningLine(b,RED);
+    if(aiWin)return{score:1000000+depth};
+    if(humanWin)return{score:-1000000-depth};
+    const moves=legalMoves(b);
+    if(depth===0||moves.length===0)return{score:heuristic(b,YELLOW)};
+    moves.sort((a,b)=>Math.abs(3-a)-Math.abs(3-b));
+    let bestCol=moves[0];
+    if(maximizing){
+      let best=-Infinity;
+      for(const c of moves){
+        const val=minimax(makeMove(b,c,YELLOW),depth-1,alpha,beta,false).score;
+        if(val>best){best=val;bestCol=c;}alpha=Math.max(alpha,best);if(alpha>=beta)break;
+      }
+      return{score:best,col:bestCol};
+    }else{
+      let best=Infinity;
+      for(const c of moves){
+        const val=minimax(makeMove(b,c,RED),depth-1,alpha,beta,true).score;
+        if(val<best){best=val;bestCol=c;}beta=Math.min(beta,best);if(alpha>=beta)break;
+      }
+      return{score:best,col:bestCol};
+    }
+  }
+
+  function chooseAIMove(b){
+    const moves=legalMoves(b);
+    for(const c of moves)if(winningLine(makeMove(b,c,YELLOW),YELLOW))return c;
+    for(const c of moves)if(winningLine(makeMove(b,c,RED),RED))return c;
+    const empties=ROWS*COLS-moveCount,depth=empties<16?7:6;
+    const result=minimax(b,depth,-Infinity,Infinity,true);
+    return result.col??moves[Math.floor(Math.random()*moves.length)];
+  }
+
+  function updateScore(){redScoreEl.textContent=score[RED];yellowScoreEl.textContent=score[YELLOW];}
+
+  function newRound(forceSameStarter=false){
+    if(gameOver&&!forceSameStarter)startingPlayer=other(startingPlayer);
+    board=freshBoard();current=startingPlayer;locked=false;gameOver=false;moveCount=0;selectedCol=3;
+    statusEl.textContent=`${pieceName(current)} goes first. Choose a column and drop a disc.`;
+    renderBoard();
+    if(mode==="ai"&&current===YELLOW){
+      locked=true;setTimeout(async()=>{const col=chooseAIMove(board);locked=false;await place(col);},350);
+    }
+  }
+
+  function setMode(m){
+    mode=m;
+    localBtn.classList.toggle("active",m==="local");
+    aiBtn.classList.toggle("active",m==="ai");
+    score={1:0,2:0};updateScore();startingPlayer=RED;
+    newRound(true);
+  }
+
+  document.addEventListener("keydown",e=>{
+    const k=e.key.toLowerCase();
+    if(["arrowleft","arrowright","arrowdown","a","d","s"].includes(k))e.preventDefault();
+    if(locked||gameOver)return;
+    if(mode==="ai"&&current===YELLOW)return;
+
+    if(e.key==="ArrowLeft"||k==="a"){
+      selectedCol=(selectedCol+COLS-1)%COLS;renderPreview();
+    }else if(e.key==="ArrowRight"||k==="d"){
+      selectedCol=(selectedCol+1)%COLS;renderPreview();
+    }else if(e.key==="ArrowDown"||k==="s"){
+      tryMove(selectedCol);
+    }
+  });
+
+  localBtn.addEventListener("click",()=>setMode("local"));
+  aiBtn.addEventListener("click",()=>setMode("ai"));
+  newRoundBtn.addEventListener("click",()=>newRound(false));
+  resetScoreBtn.addEventListener("click",()=>{score={1:0,2:0};updateScore();});
+
+  initUI();board=freshBoard();renderBoard();updateScore();
+})();
+</script>
+</body>
+</html>
